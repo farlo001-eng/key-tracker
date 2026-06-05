@@ -77,7 +77,7 @@
   .badge-no  { background: var(--red-light); color: var(--red); }
   .badge-pending { background: var(--gray-light); color: var(--gray); }
 
-  .checked-info { margin-top: 6px; font-size: 11px; color: var(--gray); }
+  .btn-undo { background: #f3f4f6; color: var(--gray); border: 1px solid var(--border); flex: 0 0 auto; padding: 12px 14px; }
 
   /* Filter tabs */
   .filter-tabs { display: flex; gap: 8px; padding: 0 16px 10px; background: white; border-bottom: 1px solid var(--border); overflow-x: auto; }
@@ -241,6 +241,9 @@ function renderUnits() {
     const info = u.checked_at
       ? `<div class="checked-info">By ${u.checked_by} · ${new Date(u.checked_at).toLocaleString()}</div>`
       : '';
+    const undoBtn = u.has_keys !== null
+      ? `<button class="btn btn-undo" onclick="uncheckUnit(${u.id})">↩ Undo</button>`
+      : '';
     return `
       <div class="unit-card" id="unit-${u.id}">
         <div class="unit-header">
@@ -253,11 +256,21 @@ function renderUnits() {
         <div class="btn-row">
           <button class="btn btn-yes ${isYes?'selected':''}" onclick="markUnit(${u.id}, true)">✓ Has Keys</button>
           <button class="btn btn-no ${isNo?'selected':''}" onclick="markUnit(${u.id}, false)">✗ No Keys</button>
+          ${undoBtn}
         </div>
         ${info}
       </div>
     `;
   }).join('') || '<div style="text-align:center;padding:32px;color:var(--gray);">No units in this view</div>';
+}
+
+async function uncheckUnit(unitId) {
+  await fetch(`/api/check/${unitId}`, { method: 'DELETE' });
+  const units = unitsCache[currentProperty.code];
+  const u = units.find(x => x.id === unitId);
+  if (u) { u.has_keys = null; u.checked_at = null; u.checked_by = null; }
+  renderUnits();
+  fetch('/api/properties').then(r => r.json()).then(d => { propertiesCache = d; });
 }
 
 async function markUnit(unitId, hasKeys) {

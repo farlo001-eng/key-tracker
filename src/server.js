@@ -111,6 +111,14 @@ app.post('/api/check', (req, res) => {
   res.json({ ok: true });
 });
 
+// DELETE /api/check/:unit_id - clear a unit back to pending
+app.delete('/api/check/:unit_id', (req, res) => {
+  const unit_id = parseInt(req.params.unit_id);
+  db.run('DELETE FROM key_checks WHERE unit_id = ?', [unit_id]);
+  saveDb();
+  res.json({ ok: true });
+});
+
 app.get('/api/export', (req, res) => {
   const rows = queryAll(`
     SELECT u.property, u.unit, u.unit_type,
