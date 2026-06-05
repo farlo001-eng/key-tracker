@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Key Tracker</title>
+<style>
+  :root {
+    --blue: #2563eb;
+    --blue-dark: #1d4ed8;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --gray: #6b7280;
+    --gray-light: #f3f4f6;
+    --border: #e5e7eb;
+    --text: #111827;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: var(--text); }
+
+  /* Header */
+  header { background: var(--blue); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+  header h1 { font-size: 18px; font-weight: 700; }
+  #back-btn { background: rgba(255,255,255,.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; display: none; }
+  #back-btn:hover { background: rgba(255,255,255,.3); }
+  #export-btn { background: rgba(255,255,255,.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; text-decoration: none; }
+  #export-btn:hover { background: rgba(255,255,255,.3); }
+
+  /* Name bar */
+  #name-bar { background: white; padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  #name-bar label { font-size: 13px; color: var(--gray); white-space: nowrap; }
+  #intern-name { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 14px; flex: 1; max-width: 220px; }
+
+  /* Search */
+  #search-bar { padding: 10px 16px; background: white; border-bottom: 1px solid var(--border); }
+  #search-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 15px; }
+  #search-input:focus { outline: none; border-color: var(--blue); }
+
+  /* Progress bar */
+  .progress-wrap { background: white; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .progress-label { font-size: 12px; color: var(--gray); margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .progress-track { height: 8px; background: var(--gray-light); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width .3s; }
+
+  /* Lists */
+  #view-properties, #view-units { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* Property card */
+  .prop-card { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 14px 16px; cursor: pointer; transition: box-shadow .15s; }
+  .prop-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+  .prop-name { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .prop-stats { display: flex; gap: 10px; font-size: 13px; }
+  .stat { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-green { background: var(--green); }
+  .dot-red { background: var(--red); }
+  .dot-gray { background: #d1d5db; }
+  .prop-progress { margin-top: 8px; }
+
+  /* Unit card */
+  .unit-card { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 14px 16px; }
+  .unit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .unit-num { font-size: 18px; font-weight: 700; }
+  .unit-type { font-size: 12px; color: var(--gray); }
+  .btn-row { display: flex; gap: 10px; }
+  .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+  .btn:active { opacity: .8; }
+  .btn-yes { background: var(--green); color: white; }
+  .btn-no  { background: var(--red); color: white; }
+  .btn-yes.selected { box-shadow: 0 0 0 3px #86efac; }
+  .btn-no.selected  { box-shadow: 0 0 0 3px #fca5a5; }
+
+  .status-badge { font-size: 12px; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+  .badge-yes { background: var(--green-light); color: var(--green); }
+  .badge-no  { background: var(--red-light); color: var(--red); }
+  .badge-pending { background: var(--gray-light); color: var(--gray); }
+
+  .checked-info { margin-top: 6px; font-size: 11px; color: var(--gray); }
+
+  /* Filter tabs */
+  .filter-tabs { display: flex; gap: 8px; padding: 0 16px 10px; background: white; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { padding: 5px 12px; border-radius: 16px; border: 1px solid var(--border); font-size: 13px; cursor: pointer; white-space: nowrap; background: white; }
+  .tab.active { background: var(--blue); color: white; border-color: var(--blue); }
+
+  .hidden { display: none !important; }
+  #subtitle { font-size: 13px; opacity: .8; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🔑 Key Tracker</h1>
+    <div id="subtitle"></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button id="back-btn" onclick="showProperties()">← Back</button>
+    <a id="export-btn" href="/api/export" download>Export CSV</a>
+  </div>
+</header>
+
+<div id="name-bar">
+  <label for="intern-name">Your name:</label>
+  <input id="intern-name" type="text" placeholder="Enter your name" autocomplete="off">
+</div>
+
+<!-- Properties view -->
+<div id="view-properties">
+  <div id="search-bar-props" style="padding:0;border:none;background:none;">
+    <input id="search-props" type="search" placeholder="Search properties…" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:15px;">
+  </div>
+  <div id="overall-progress" class="progress-wrap" style="padding:10px 0;border:none;"></div>
+  <div id="props-list"></div>
+</div>
+
+<!-- Units view -->
+<div id="view-units" class="hidden">
+  <div id="units-progress" class="progress-wrap" style="padding:10px 0;border:none;"></div>
+  <div class="filter-tabs" id="filter-tabs" style="padding:0 0 10px;">
+    <button class="tab active" onclick="setFilter('all')">All</button>
+    <button class="tab" onclick="setFilter('pending')">Pending</button>
+    <button class="tab" onclick="setFilter('yes')">Has Keys</button>
+    <button class="tab" onclick="setFilter('no')">No Keys</button>
+  </div>
+  <div id="units-list"></div>
+</div>
+
+<script>
+let currentProperty = null;
+let unitsCache = {};
+let propertiesCache = [];
+let currentFilter = 'all';
+
+const internInput = document.getElementById('intern-name');
+const savedName = localStorage.getItem('intern_name') || '';
+if (savedName) internInput.value = savedName;
+internInput.addEventListener('change', () => localStorage.setItem('intern_name', internInput.value));
+
+function getInternName() {
+  return internInput.value.trim() || 'Unknown';
+}
+
+// ── Properties ───────────────────────────────────────────────────────────────
+async function loadProperties() {
+  const res = await fetch('/api/properties');
+  propertiesCache = await res.json();
+  renderProperties();
+}
+
+function renderProperties() {
+  const q = document.getElementById('search-props').value.toLowerCase();
+  const filtered = propertiesCache.filter(p => p.property.toLowerCase().includes(q));
+
+  const totalUnits = propertiesCache.reduce((s, p) => s + p.total, 0);
+  const totalChecked = propertiesCache.reduce((s, p) => s + p.checked, 0);
+  const pct = totalUnits ? Math.round(totalChecked / totalUnits * 100) : 0;
+  document.getElementById('overall-progress').innerHTML = `
+    <div class="progress-label"><span>Overall Progress</span><span>${totalChecked} / ${totalUnits} units (${pct}%)</span></div>
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+  `;
+
+  document.getElementById('props-list').innerHTML = filtered.map(p => {
+    const pct = p.total ? Math.round(p.checked / p.total * 100) : 0;
+    return `
+      <div class="prop-card" onclick="openProperty('${p.property_code}', '${escHtml(p.property)}')">
+        <div class="prop-name">${escHtml(p.property)}</div>
+        <div class="prop-stats">
+          <span class="stat"><span class="dot dot-green"></span>${p.keys_yes} yes</span>
+          <span class="stat"><span class="dot dot-red"></span>${p.keys_no} no</span>
+          <span class="stat"><span class="dot dot-gray"></span>${p.total - p.checked} pending</span>
+        </div>
+        <div class="prop-progress">
+          <div class="progress-track" style="margin-top:6px;">
+            <div class="progress-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('search-props').addEventListener('input', renderProperties);
+
+// ── Units ────────────────────────────────────────────────────────────────────
+async function openProperty(code, name) {
+  currentProperty = { code, name };
+  document.getElementById('view-properties').classList.add('hidden');
+  document.getElementById('view-units').classList.remove('hidden');
+  document.getElementById('back-btn').style.display = 'block';
+  document.getElementById('subtitle').textContent = name;
+  currentFilter = 'all';
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===0));
+  await loadUnits(code);
+}
+
+async function loadUnits(code) {
+  const res = await fetch(`/api/units?property_code=${code}`);
+  const units = await res.json();
+  unitsCache[code] = units;
+  renderUnits();
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.toLowerCase().replace(' ','_') === f ||
+      (f === 'all' && t.textContent === 'All') ||
+      (f === 'yes' && t.textContent === 'Has Keys') ||
+      (f === 'no' && t.textContent === 'No Keys') ||
+      (f === 'pending' && t.textContent === 'Pending'));
+  });
+  renderUnits();
+}
+
+function renderUnits() {
+  const units = unitsCache[currentProperty.code] || [];
+  const checked = units.filter(u => u.has_keys !== null).length;
+  const pct = units.length ? Math.round(checked / units.length * 100) : 0;
+  document.getElementById('units-progress').innerHTML = `
+    <div class="progress-label"><span>${currentProperty.name}</span><span>${checked} / ${units.length} checked (${pct}%)</span></div>
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+  `;
+
+  const visible = units.filter(u => {
+    if (currentFilter === 'pending') return u.has_keys === null;
+    if (currentFilter === 'yes') return u.has_keys == 1;
+    if (currentFilter === 'no') return u.has_keys == 0;
+    return true;
+  });
+
+  document.getElementById('units-list').innerHTML = visible.map(u => {
+    const isYes = u.has_keys == 1;
+    const isNo  = u.has_keys == 0;
+    const badge = u.has_keys === null
+      ? `<span class="status-badge badge-pending">Pending</span>`
+      : isYes
+        ? `<span class="status-badge badge-yes">✓ Has Keys</span>`
+        : `<span class="status-badge badge-no">✗ No Keys</span>`;
+    const info = u.checked_at
+      ? `<div class="checked-info">By ${u.checked_by} · ${new Date(u.checked_at).toLocaleString()}</div>`
+      : '';
+    return `
+      <div class="unit-card" id="unit-${u.id}">
+        <div class="unit-header">
+          <div>
+            <div class="unit-num">Unit ${escHtml(u.unit)}</div>
+            <div class="unit-type">${escHtml(u.unit_type)}</div>
+          </div>
+          ${badge}
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-yes ${isYes?'selected':''}" onclick="markUnit(${u.id}, true)">✓ Has Keys</button>
+          <button class="btn btn-no ${isNo?'selected':''}" onclick="markUnit(${u.id}, false)">✗ No Keys</button>
+        </div>
+        ${info}
+      </div>
+    `;
+  }).join('') || '<div style="text-align:center;padding:32px;color:var(--gray);">No units in this view</div>';
+}
+
+async function markUnit(unitId, hasKeys) {
+  await fetch('/api/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ unit_id: unitId, has_keys: hasKeys, checked_by: getInternName() })
+  });
+  // Update local cache
+  const units = unitsCache[currentProperty.code];
+  const u = units.find(x => x.id === unitId);
+  if (u) {
+    u.has_keys = hasKeys ? 1 : 0;
+    u.checked_at = new Date().toISOString();
+    u.checked_by = getInternName();
+  }
+  renderUnits();
+  // Refresh property totals in background
+  fetch('/api/properties').then(r => r.json()).then(d => { propertiesCache = d; });
+}
+
+function showProperties() {
+  currentProperty = null;
+  document.getElementById('view-properties').classList.remove('hidden');
+  document.getElementById('view-units').classList.add('hidden');
+  document.getElementById('back-btn').style.display = 'none';
+  document.getElementById('subtitle').textContent = '';
+  loadProperties();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Init
+loadProperties();
+</script>
+</body>
+</html>
