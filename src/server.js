@@ -34,6 +34,10 @@ async function initDb() {
     );
   `);
 
+  // Migration: add 'active' flag for archiving properties without deleting data.
+  // Wrapped in try/catch since SQLite has no "ADD COLUMN IF NOT EXISTS".
+  try { db.run('ALTER TABLE units ADD COLUMN active INTEGER DEFAULT 1'); } catch (e) {}
+
   // Seed if empty
   const count = db.exec('SELECT COUNT(*) as c FROM units')[0].values[0][0];
   if (count === 0) {
@@ -77,10 +81,41 @@ app.get('/api/properties', (req, res) => {
       SELECT unit_id, has_keys FROM key_checks
       WHERE id IN (SELECT MAX(id) FROM key_checks GROUP BY unit_id)
     ) kc ON kc.unit_id = u.id
+    WHERE u.active != 0
     GROUP BY u.property_code, u.property
     ORDER BY u.property
   `);
   res.json(rows);
+});
+
+// ── Admin: manage properties (rename / archive) ─────────────────────────────
+// These never touch key_checks, so completed inspections are never affected.
+
+app.get('/api/admin/properties', (req, res) => {
+  const rows = queryAll(`
+    SELECT u.property_code, u.property, u.active, COUNT(*) as total
+    FROM units u
+    GROUP BY u.property_code, u.property, u.active
+    ORDER BY u.property
+  `);
+  res.json(rows);
+});
+
+app.patch('/api/admin/properties/:code/rename', (req, res) => {
+  const code = req.params.code;
+  const property = (req.body.property || '').trim();
+  if (!property) return res.status(400).json({ error: 'Property name is required' });
+  db.run('UPDATE units SET property = ? WHERE property_code = ?', [property, code]);
+  saveDb();
+  res.json({ ok: true });
+});
+
+app.patch('/api/admin/properties/:code/active', (req, res) => {
+  const code = req.params.code;
+  const active = req.body.active ? 1 : 0;
+  db.run('UPDATE units SET active = ? WHERE property_code = ?', [active, code]);
+  saveDb();
+  res.json({ ok: true });
 });
 
 app.get('/api/units', (req, res) => {
